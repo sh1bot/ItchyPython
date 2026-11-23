@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Python</title>
+<style>
+:root {color-scheme:light dark}
+body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
+#pocket-preview [hidden] {display:none}
+#pocket-preview nav, #pocket-preview .runbar, #pocket-preview .tray {display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px}
+#pocket-preview nav button[aria-pressed=true], #pocket-preview #run {background:var(--brand);color:var(--on-brand)}
+#pocket-preview .expression {background:var(--code);padding:18px;min-height:24px;font:20px ui-monospace,monospace;overflow-wrap:anywhere}
+#pocket-preview .keypad {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px 16px 0}
+#pocket-preview pre {margin:0;padding:12px 16px;background:var(--code);white-space:pre-wrap;overflow-wrap:anywhere}
+</style>
+</head><body>
+<div class="viz-dotted-background" id="pocket-preview">
+  <section class="pocket" aria-label="Pocket Python editor">
+    <header><div><div class="wordmark">Pocket Python</div><h2>score.py</h2></div><span class="language">Python 3</span></header>
+    <nav aria-label="Mode"><button id="program-tab" aria-pressed="true">Program</button><button id="calculator-tab" aria-pressed="false">Calculator</button></nav>
+    <div class="editor" aria-label="Python code">
+      <div class="rows"></div>
+      <div class="draft"><span class="number"></span><div class="draft-code" aria-live="polite"></div></div>
+    </div>
+    <section class="composer" aria-label="Build a line">
+      <div class="toolbar">
+        <div><div class="eyebrow">INDENT</div><div class="depth" aria-live="polite"></div></div>
+        <div class="arrows"><button type="button" data-action="left" aria-label="Outdent">←</button><button type="button" data-action="right" aria-label="Indent">→</button></div>
+      </div>
+      <div class="prompt" aria-live="polite"></div>
+      <div class="choices"></div>
+      <div class="actions"><button type="button" data-action="back">Undo</button><button type="button" data-action="add">Add line <span aria-hidden="true">↵</span></button></div>
+    </section>
+    <section id="calculator" hidden aria-label="Expression editor">
+      <div class="expression" aria-live="polite">0</div>
+      <div class="keypad" aria-label="Calculator keypad"></div>
+      <div class="tray" aria-label="Variables and functions"></div>
+    </section>
+    <div class="runbar"><button id="run">Run program</button><button id="stop" disabled>Stop</button></div>
+    <pre id="result" aria-live="polite" hidden></pre>
+  </section>
+</div>
+<style>
+#pocket-preview {color-scheme:light dark; padding:20px 0; font-family:system-ui,sans-serif}
+#pocket-preview .pocket {--paper:light-dark(#fbfbff,#191b27);--code:light-dark(#f1f1fa,#222638);--ink:light-dark(#22243a,#eff0ff);--dim:light-dark(#565c76,#adb4d3);--edge:light-dark(#d9dced,#3e4563);--brand:light-dark(#5132a6,#c4afff);--on-brand:light-dark(#fff,#26203e);--active:light-dark(#e8dfff,#3d305e);--variable:light-dark(#006354,#80e1cc);--number:light-dark(#8e3a17,#ffb388);max-width:396px;margin:auto;border:1px solid var(--edge);border-radius:25px;overflow:hidden;background:var(--paper);color:var(--ink);box-shadow:0 12px 30px #23134626}
+#pocket-preview header,#pocket-preview .toolbar {display:flex;align-items:center;justify-content:space-between;gap:8px}
+#pocket-preview header {padding:16px 18px;border-bottom:1px solid var(--edge)}
+#pocket-preview h2 {margin:2px 0 0;font:600 20px ui-monospace,monospace}
+#pocket-preview .wordmark,#pocket-preview .eyebrow {font-size:11px;letter-spacing:.1em;font-weight:700;color:var(--dim)}
+#pocket-preview .language {font-size:12px;color:var(--dim);background:var(--code);padding:5px 9px;border-radius:20px}
+#pocket-preview .editor {background:var(--code);padding:12px 10px;min-height:145px;font:14px/1.5 ui-monospace,monospace}
+#pocket-preview .line,#pocket-preview .draft {display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;padding:5px 3px}
+#pocket-preview .draft {background:var(--active);border-radius:8px}
+#pocket-preview .number {color:var(--dim);text-align:center;font-size:12px;padding-top:2px}
+#pocket-preview .line-code,#pocket-preview .draft-code {padding-left:calc(var(--depth) * clamp(10px, 4vw, 19px));overflow-wrap:anywhere}
+#pocket-preview .line-code {background:repeating-linear-gradient(90deg,var(--edge) 0 1px,transparent 1px clamp(10px, 4vw, 19px)) no-repeat;background-size:calc(var(--depth) * clamp(10px, 4vw, 19px)) 100%}
+#pocket-preview .keyword {color:var(--brand);font-weight:650}
+#pocket-preview .variable {color:var(--variable)}
+#pocket-preview .literal {color:var(--number)}
+#pocket-preview .slot {display:inline-block;border-bottom:1px dashed var(--brand);color:var(--brand);padding:0 2px}
+#pocket-preview .composer {padding:12px 16px 16px}
+#pocket-preview .toolbar {padding-bottom:10px;border-bottom:1px solid var(--edge)}
+#pocket-preview .depth {font-size:13px;margin-top:3px}
+#pocket-preview .arrows,#pocket-preview .choices,#pocket-preview .actions {display:flex;gap:8px;flex-wrap:wrap}
+#pocket-preview .prompt {margin:12px 0 8px;font-size:14px;font-weight:650}
+#pocket-preview button {font:inherit;min-width:44px;min-height:44px;padding:6px 10px;border:1px solid var(--edge);border-radius:10px;background:var(--code);color:var(--ink)}
+#pocket-preview button:disabled {opacity:.42}
+#pocket-preview .choices button {font:600 14px ui-monospace,monospace;background:var(--active);color:var(--brand)}
+#pocket-preview .choices button[data-kind="variable"] {color:var(--variable)}
+#pocket-preview .choices button[data-kind="literal"] {color:var(--number)}
+#pocket-preview .actions {margin-top:12px}
+#pocket-preview [data-action="add"] {flex:1;background:var(--brand);color:var(--on-brand);font-weight:650}
+</style>
+<script>
+(() => {
+  const root = document.getElementById('pocket-preview');
+  const rows = root.querySelector('.rows');
+  const draft = root.querySelector('.draft-code');
+  const choices = root.querySelector('.choices');
+  const [left, right, back, add] = ['left', 'right', 'back', 'add'].map(name => root.querySelector('[data-action=' + name + ']'));
+  const initial = [{depth:0, tokens:['score', ' = ', '12']}, {depth:0, tokens:['if', ' ', 'score', ' > ', '10', ':'], header:true}, {depth:1, tokens:['print', '(', 'score', ')']}];
+  const lines = initial.slice();
+  let depth = 1;
+  let selected = [];
+  const options = {
+    start:['print', 'if', 'pass', 'set score'],
+    value:['score', '0', '10', '12'],
+    operator:['>', '<', '==']
+  };
+  const token = value => {
+    const span = document.createElement('span');
+    span.textContent = value;
+    span.className = ['if','print','pass'].includes(value) ? 'keyword' : value === 'score' ? 'variable' : /^\d+$/.test(value) ? 'literal' : value.startsWith('[') ? 'slot' : '';
+    return span;
+  };
+  function draw(focus) {
+    const last = lines.at(-1);
+    const ceiling = last.depth + Number(Boolean(last.header));
+    const floor = last.header ? ceiling : 0;
+    const [kind, first, operator, second] = selected;
+    const expression = kind === 'if' ? ['if',' ',first || '[value]',' ',operator || '[op]',' ',second || '[value]',':']
+      : kind === 'print' ? ['print','(',first || '[value]',')'] : kind === 'set score' ? ['score',' = ',first || '[value]'] : kind ? ['pass'] : ['[statement]'];
+    const step = !kind ? 'start' : kind === 'pass' ? null : !first ? 'value' : kind !== 'if' ? null : !operator ? 'operator' : !second ? 'value' : null;
+    rows.replaceChildren(...lines.map((line, index) => {
+      const row = document.createElement('div');
+      row.className = 'line';
+      const number = document.createElement('span');
+      number.className = 'number';
+      number.textContent = index + 1;
+      const code = document.createElement('div');
+      code.className = 'line-code';
+      code.style.setProperty('--depth', line.depth);
+      code.append(...line.tokens.map(token));
+      row.append(number, code);
+      return row;
+    }));
+    root.querySelector('.editor').dataset.source = lines.map(line => '    '.repeat(line.depth) + line.tokens.join('')).join(String.fromCharCode(10));
+    root.querySelector('.editor').dataset.incomplete = String(Boolean(last.header || selected.length));
+    draft.style.setProperty('--depth', depth);
+    draft.replaceChildren(...expression.map(token));
+    root.querySelector('.draft .number').textContent = lines.length + 1;
+    root.querySelector('.depth').textContent = 'Level ' + depth + (last.header ? ' · required after if' : depth === 0 ? ' · top level' : ' · inside if');
+    left.disabled = depth <= floor;
+    right.disabled = depth >= ceiling || (kind === 'if' && depth >= 1);
+    back.disabled = selected.length === 0;
+    add.disabled = Boolean(step);
+    root.querySelector('.prompt').textContent = {start:'Choose a statement', value:'Choose a value', operator:'Choose a comparison'}[step] || 'Line ready';
+    choices.replaceChildren(...(options[step] || []).filter(choice => choice !== 'if' || depth < 2).map(choice => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = choice;
+      button.dataset.kind = token(choice).className;
+      button.addEventListener('click', () => { selected.push(choice); draw(true); });
+      return button;
+    }));
+    if (focus) (choices.firstElementChild || add).focus();
+    add.onclick = () => {
+      lines.push({depth, tokens:expression, header:kind === 'if'});
+      if (kind === 'if') depth++;
+      selected = [];
+      draw(true);
+    };
+  }
+  function shift(change) {
+    if (selected[0] === 'if' && depth + change >= 2) return;
+    depth += change;
+    draw();
+    if (document.activeElement === (change < 0 ? left : right) && document.activeElement.disabled) {
+      ((change < 0 ? right : left).disabled ? choices.firstElementChild || add : (change < 0 ? right : left)).focus();
+    }
+  }
+  left.onclick = () => shift(-1);
+  right.onclick = () => shift(1);
+  back.onclick = () => {selected.pop();draw(true);};
+  draw();
+})();
+</script>
+<script src="app.js"></script></body></html>
