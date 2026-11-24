@@ -273,17 +273,18 @@
 
   function acceptDefinitionName() {
     const name = newName;
-    newName = null;
     if (!state) {
       state = {source: 'def ' + name + '(', definition: {name, parameters: [], closed: false}};
-      draw('Add parameter');
+      startName();
       return;
     }
     change(() => {
       const parameters = state.definition.parameters;
       state.source += (parameters.length ? ', ' : '') + name;
       parameters.push(name);
-    }, 'Add parameter');
+      newName = '';
+      showNameDigits = false;
+    }, 'a');
   }
 
   function enclosingFunction() {
@@ -314,11 +315,14 @@
     if (string !== null) {
       stepHint = '"';
       step.disabled = false;
+    } else if (definition && newName === '') {
+      stepHint = ')';
+      step.disabled = false;
     } else if (naming) {
       stepHint = 'use name';
       step.disabled = !canUseName();
     } else if (defining) {
-      stepHint = definition.closed ? 'next line' : ')';
+      stepHint = 'next line';
       step.disabled = false;
     } else if (pickingVariable) {
       step.disabled = true;
@@ -342,9 +346,9 @@
     } else if (naming) {
       prompt = reserved.has(newName) ? 'Python reserves this name' :
         definition?.parameters.includes(newName) ? 'Parameter already exists' :
-        defining ? (definition ? 'Name the parameter' : 'Name the function') : kind === 'for' ? 'Name the loop variable' : 'Name the variable';
+        defining ? (definition ? 'Type a parameter or step out' : 'Name the function') : kind === 'for' ? 'Name the loop variable' : 'Name the variable';
     } else if (defining) {
-      prompt = definition.closed ? 'Function signature ready' : 'Add parameters or step out';
+      prompt = 'Function signature ready';
     } else if (pickingVariable) {
       prompt = 'Choose a variable';
     } else if (state) {
@@ -441,7 +445,6 @@
       drawNameKeys();
     } else if (defining) {
       if (naming) drawNameKeys();
-      else if (!definition.closed) addButton(choices, 'Add parameter', startName);
     } else if (pickingVariable) {
       drawVariablePicker(variables);
     } else if (kind !== 'pass' && kind !== 'else') {
@@ -487,7 +490,7 @@
       draw('7');
       return;
     }
-    if (kind === 'def' && newName !== null) {
+    if (kind === 'def' && (!state || newName)) {
       acceptDefinitionName();
       return;
     }
@@ -499,6 +502,7 @@
       change(() => {
         state.source += '):';
         state.definition.closed = true;
+        newName = null;
       });
       return;
     }
@@ -535,6 +539,14 @@
     } else if (edit && !kind) {
       cancelEdit();
       return;
+    } else if (state?.definition && newName) {
+      newName = '';
+      showNameDigits = false;
+    } else if (state?.definition) {
+      state = history.pop();
+      newName = state ? '' : null;
+      showNameDigits = false;
+      if (!state) kind = '';
     } else if (newName !== null) {
       newName = null;
       if ((kind === 'def' || kind === 'for') && !state) kind = '';
