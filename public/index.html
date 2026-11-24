@@ -19,6 +19,8 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
       <div class="rows"></div>
       <div class="draft"><span class="number"></span><div class="draft-code" aria-live="polite"></div></div>
     </div>
+    <div id="execution-status" role="status"></div>
+    <pre id="result" aria-live="polite" hidden></pre>
     <section class="composer" aria-label="Build a line">
       <div class="toolbar">
         <div><div class="eyebrow">INDENT</div><div class="depth" aria-live="polite"></div></div>
@@ -32,8 +34,6 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
       <div class="actions"><button type="button" data-action="back">Undo</button><button type="button" data-action="step">Step out</button></div>
     </section>
     <div class="runbar"><button id="save">Save .py</button><button id="stop" disabled>Stop</button></div>
-    <div id="execution-status" role="status"></div>
-    <pre id="result" aria-live="polite" hidden></pre>
   </section>
 </div>
 <style>

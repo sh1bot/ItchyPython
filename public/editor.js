@@ -12,6 +12,8 @@
   let submitted = 0;
   const templates = {
     'Set variable': {},
+    'def': {header: true},
+    'return': {prefix: 'return '},
     'Expression': {prefix: ''},
     'if': {prefix: 'if ', suffix: ':', header: true},
     'print': {prefix: 'print', group: {open: '(', close: ')', empty: true, comma: true}},
@@ -37,13 +39,21 @@
     if (newName === null) {
       for (const name of variables) addButton(choices, name, () => chooseVariable(name));
       addButton(choices, 'New variable', () => {
-        newName = '';
-        showNameDigits = false;
-        draw('a');
+        startName();
       });
       return;
     }
 
+    drawNameKeys();
+  }
+
+  function startName() {
+    newName = '';
+    showNameDigits = false;
+    draw('a');
+  }
+
+  function drawNameKeys() {
     addButton(choices, 'Delete character', () => {
       newName = newName.slice(0, -1);
       draw(newName ? 'Delete character' : 'a');
@@ -70,6 +80,10 @@
   function begin(name) {
     kind = name;
     const template = templates[name];
+    if (name === 'def') {
+      startName();
+      return;
+    }
     if (name !== 'Set variable') state = {source: template.prefix, groups: [], needsValue: !template.complete, number: ''};
     if (template.group) openGroup(template.group);
     draw();
@@ -126,25 +140,83 @@
   }
 
   function canUseName() {
-    return Boolean(newName) && !reserved.has(newName);
+    return Boolean(newName) && !reserved.has(newName) &&
+      !state?.definition?.parameters.includes(newName);
+  }
+
+  function acceptDefinitionName() {
+    const name = newName;
+    newName = null;
+    if (!state) {
+      state = {source: 'def ' + name + '(', definition: {name, parameters: [], closed: false}};
+      draw('Add parameter');
+      return;
+    }
+    change(() => {
+      const parameters = state.definition.parameters;
+      state.source += (parameters.length ? ', ' : '') + name;
+      parameters.push(name);
+    }, 'Add parameter');
+  }
+
+  function enclosingFunction() {
+    if (!depth) return undefined;
+    const topLevel = lines.findLast(line => line.depth === 0);
+    return topLevel?.definition ? topLevel : undefined;
   }
 
   function draw(focusLabel) {
     const last = lines.at(-1);
     const canOutdent = depth > 0 && !last?.header;
-    const variables = [...new Set(lines.flatMap(line => line.variable ? [line.variable] : []))];
+    const scope = enclosingFunction();
+    const variables = [...new Set([
+      ...(scope?.definition.parameters || []),
+      ...lines.flatMap(line => line.variable && (!line.scope || line.scope === scope) ? [line.variable] : [])
+    ])];
+    const functions = [...new Set(['abs', 'len', 'round', ...lines.flatMap(line => line.definition ? [line.definition.name] : [])])];
+    const defining = kind === 'def';
+    const definition = state?.definition;
+    const naming = newName !== null;
     const pickingVariable = kind === 'Set variable' && !state;
-    const group = state?.groups.at(-1);
+    const group = state?.groups?.at(-1);
     const canClose = group && (!state.needsValue || (group.empty && group.start === state.source.length));
     undo.disabled = !kind;
-    step.disabled = pickingVariable ? !canUseName() : kind ? (group ? !canClose : state.needsValue) : !canOutdent;
     const exit = depth === 1 ? 'submit block' : 'outdent';
-    step.textContent = group ? 'Step out · ' + group.close :
-      state ? 'Step out · next line' :
-      pickingVariable && newName !== null ? 'Step out · use name' :
-      !pickingVariable && canOutdent ? 'Step out · ' + exit : 'Step out';
-    get('.depth').textContent = 'Level ' + depth + (last?.header ? ' · required after if' : depth ? ' · inside if' : ' · top level');
-    get('.prompt').textContent = !kind ? 'Choose a statement' : pickingVariable ? (newName === null ? 'Choose a variable' : reserved.has(newName) ? 'Python reserves this name' : 'Name the variable') : state.needsValue ? 'Choose a value' : 'Continue the expression';
+    let stepHint = '';
+    if (naming) {
+      stepHint = 'use name';
+      step.disabled = !canUseName();
+    } else if (defining) {
+      stepHint = definition.closed ? 'next line' : ')';
+      step.disabled = false;
+    } else if (pickingVariable) {
+      step.disabled = true;
+    } else if (group) {
+      stepHint = group.close;
+      step.disabled = !canClose;
+    } else if (state) {
+      stepHint = 'next line';
+      step.disabled = state.needsValue;
+    } else {
+      stepHint = canOutdent ? exit : '';
+      step.disabled = !canOutdent;
+    }
+    step.textContent = 'Step out' + (stepHint ? ' · ' + stepHint : '');
+    get('.depth').textContent = 'Level ' + depth + (last?.header ? ' · body required' :
+      scope ? ' · inside ' + scope.definition.name : depth ? ' · inside if' : ' · top level');
+    let prompt = 'Choose a statement';
+    if (naming) {
+      prompt = reserved.has(newName) ? 'Python reserves this name' :
+        definition?.parameters.includes(newName) ? 'Parameter already exists' :
+        defining ? (definition ? 'Name the parameter' : 'Name the function') : 'Name the variable';
+    } else if (defining) {
+      prompt = definition.closed ? 'Function signature ready' : 'Add parameters or step out';
+    } else if (pickingVariable) {
+      prompt = 'Choose a variable';
+    } else if (state) {
+      prompt = state.needsValue ? 'Choose a value' : 'Continue the expression';
+    }
+    get('.prompt').textContent = prompt;
     editor.dataset.source = sourceFor(lines);
     get('#save').disabled = !lines.length || Boolean(last?.header || kind);
     rows.replaceChildren(...lines.map((line, index) => {
@@ -163,24 +235,41 @@
     get('.draft .number').textContent = lines.length + 1;
     const caret = document.createElement('span');
     caret.className = 'slot';
-    caret.textContent = pickingVariable && !newName ? 'variable' : state?.needsValue ? 'value' : '▏';
-    const pending = state ? [...state.groups].reverse().map(item => item.close).join('') + (templates[kind].suffix || '') : '';
+    let prefix = state?.source ?? newName ?? '';
+    let pending = '';
+    if (defining) {
+      prefix = state?.source ?? 'def ';
+      if (naming) prefix += (definition?.parameters.length ? ', ' : '') + newName;
+      pending = definition?.closed ? '' : (definition ? '):' : '():');
+    } else if (pickingVariable) {
+      pending = ' = …';
+    } else if (state) {
+      pending = [...state.groups].reverse().map(item => item.close).join('') + (templates[kind].suffix || '');
+    }
+    caret.textContent = naming && !newName ? (defining ? (definition ? 'parameter' : 'name') : 'variable') :
+      pickingVariable && !naming ? 'variable' : state?.needsValue ? 'value' : '▏';
     draft.style.setProperty('--depth', Math.min(depth, 6));
-    draft.replaceChildren(state?.source ?? newName ?? '', caret, pickingVariable ? ' = …' : pending);
+    draft.replaceChildren(prefix, caret, pending);
 
     choices.replaceChildren();
     numbers.replaceChildren();
     nameKeys.replaceChildren();
     nameKeys.hidden = true;
-    numbers.hidden = !state || kind === 'pass';
+    numbers.hidden = !state || defining || kind === 'pass';
     if (!kind) {
-      for (const name of Object.keys(templates)) addButton(choices, name, () => begin(name));
+      for (const name of Object.keys(templates)) {
+        if ((name === 'return' && !scope) || (name === 'def' && depth !== 0)) continue;
+        addButton(choices, name, () => begin(name));
+      }
+    } else if (defining) {
+      if (naming) drawNameKeys();
+      else if (!definition.closed) addButton(choices, 'Add parameter', startName);
     } else if (pickingVariable) {
       drawVariablePicker(variables);
     } else if (kind !== 'pass') {
       if (state.needsValue) {
         for (const value of [...variables, 'True', 'False', 'None']) addButton(choices, value, () => change(() => insert(value, false), '+'));
-        for (const [label, open, close, empty] of [['(', '(', ')', false], ['[', '[', ']', true], ['abs(', 'abs(', ')', false], ['len(', 'len(', ')', false], ['round(', 'round(', ')', false]]) {
+        for (const [label, open, close, empty] of [['(', '(', ')', false], ['[', '[', ']', true], ...functions.map(name => [name + '(', name + '(', ')', true])]) {
           addButton(choices, label, () => change(() => openGroup({open, close, empty, comma: true}), 'score'));
         }
         addButton(choices, '−', () => change(() => insert('-', true), 'score'));
@@ -206,16 +295,31 @@
       outdent();
       return;
     }
+    if (kind === 'def' && newName !== null) {
+      acceptDefinitionName();
+      return;
+    }
     if (!state) {
       chooseVariable(newName);
       return;
     }
-    if (state.groups.length) {
+    if (state.definition && !state.definition.closed) {
+      change(() => {
+        state.source += '):';
+        state.definition.closed = true;
+      });
+      return;
+    }
+    if (state.groups?.length) {
       change(() => insert(state.groups.pop().close, false));
       return;
     }
     const template = templates[kind];
-    lines.push({depth, source: state.source + (template.suffix || ''), header: template.header, variable: state.variable});
+    lines.push({
+      depth, source: state.source + (template.suffix || ''), header: template.header,
+      variable: state.variable, definition: state.definition,
+      scope: state.variable ? enclosingFunction() : undefined
+    });
     if (template.header) depth++;
     kind = '';
     state = undefined;
@@ -227,6 +331,7 @@
   undo.onclick = () => {
     if (newName !== null) {
       newName = null;
+      if (kind === 'def' && !state) kind = '';
     } else if (kind === 'Set variable' && state && !history.length) {
       state = undefined;
     } else {

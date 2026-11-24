@@ -1,6 +1,6 @@
 # TapScript
 
-Touch-first Python session. Build statements and expressions with the tray and number pad. Step out closes the current group, submits a complete top-level statement, or outdents a blank line. A block runs when you outdent to the top level. Python variables carry across entries. Choose **Expression** at the start of a line to evaluate it and show its value. Download the session source with **Save .py**.
+Touch-first Python session. Build statements and expressions with the tray and number pad. Step out closes the current group, submits a complete top-level statement, or outdents a blank line. A block runs when you outdent to the top level. Python variables carry across entries. Choose **Expression** at the start of a line to evaluate it and show its value. Use **def** at the top level to define a function with optional positional parameters. Names become callable from the expression tray and **return** is available inside function bodies. Download the session source with **Save .py**.
 
 The prototype uses Pyodide from jsDelivr and needs an internet connection to load Python. Stop restarts the interpreter, clearing Python variables.
 
