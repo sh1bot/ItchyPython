@@ -31,6 +31,7 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
       <div class="prompt" aria-live="polite"></div>
       <div class="choices"></div>
       <div class="numeric" aria-label="Number pad" hidden></div>
+      <div class="name-keys" aria-label="Variable name keys" hidden></div>
       <div class="actions"><button type="button" data-action="back">Undo</button><button type="button" data-action="step">Step out</button></div>
     </section>
     <section id="calculator" hidden aria-label="Expression editor">
@@ -73,6 +74,7 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
 #pocket-preview .actions {margin-top:12px}
 #pocket-preview .numeric {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
 #pocket-preview .line-code,#pocket-preview .draft-code {white-space:pre-wrap}
+#pocket-preview .name-keys {display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px;margin-top:8px}
 #pocket-preview [data-action="step"] {flex:1;background:var(--brand);color:var(--on-brand);font-weight:650}
 </style>
 <script src="editor.js"></script>
