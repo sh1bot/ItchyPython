@@ -3,7 +3,7 @@ importScripts('https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js');
 const runtime = loadPyodide();
 let namespace;
 
-onmessage = async ({data: {source, line}}) => {
+onmessage = async ({data: {source, line, replay}}) => {
   let python;
   try {
     python = await runtime;
@@ -15,10 +15,10 @@ onmessage = async ({data: {source, line}}) => {
   python.setStdout({batched: text => postMessage({type: 'output', text})});
   python.setStderr({batched: text => postMessage({type: 'output', text})});
   namespace ??= python.toPy({__name__: '__main__'});
-  const helpers = python.toPy({source, scope: namespace, line: line ?? 1});
+  const helpers = python.toPy({source, scope: namespace, line: line ?? 1, mode: replay ? 'exec' : 'single'});
   try {
     python.runPython(
-      'exec(compile("\\n" * (line - 1) + source + "\\n", "session.py", "single"), scope)',
+      'exec(compile("\\n" * (line - 1) + source + "\\n", "session.py", mode), scope)',
       {globals: helpers}
     );
   } catch (error) {

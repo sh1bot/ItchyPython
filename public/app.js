@@ -4,6 +4,8 @@ const save = get('#save');
 const status = get('#execution-status');
 const stop = get('#stop');
 const result = get('#result');
+const projectStatus = get('#project-status');
+const projectFile = get('#project-file');
 
 let worker;
 let active;
@@ -19,13 +21,17 @@ function appendOutput(text) {
   result.hidden = false;
 }
 
-function resetWorker(message) {
+function clearWorker() {
   worker?.terminate();
   worker = undefined;
   active = undefined;
   queue.length = 0;
-  appendOutput(message);
   updateStatus();
+}
+
+function resetWorker(message) {
+  clearWorker();
+  appendOutput(message);
 }
 
 function executeNext() {
@@ -60,11 +66,43 @@ editor.addEventListener('tapscript:submit', ({detail}) => {
   updateStatus();
 });
 stop.onclick = () => resetWorker('Stopped. Python variables and queued entries were cleared. Your source is still available to save.');
-save.onclick = () => {
-  const url = URL.createObjectURL(new Blob([editor.dataset.source + '\n'], {type: 'text/x-python'}));
+function download(contents, filename, type) {
+  const url = URL.createObjectURL(new Blob([contents], {type}));
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'session.py';
+  link.download = filename;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+save.onclick = () => download(editor.dataset.source + '\n', 'session.py', 'text/x-python');
+get('#save-project').onclick = () => download(editor.dataset.project, 'session.tapscript', 'application/json');
+get('#open-project').onclick = () => projectFile.click();
+projectFile.onchange = async () => {
+  const file = projectFile.files[0];
+  projectFile.value = '';
+  if (!file) return;
+  try {
+    if (file.size > 2_000_000) throw Error('Project is too large.');
+    const lines = TapProject.decode(await file.text());
+    if (editor.dataset.source && !confirm('Replace the current project with ' + file.name + '?')) return;
+    clearWorker();
+    result.textContent = '';
+    result.hidden = true;
+    editor.dispatchEvent(new CustomEvent('tapscript:open', {detail: lines}));
+    projectStatus.textContent = 'Project opened. Restart & replay to initialize Python.';
+  } catch (error) {
+    projectStatus.textContent = 'Could not open project. ' + error.message;
+  }
 };
+
+get('#replay').onclick = () => {
+  clearWorker();
+  result.textContent = '';
+  result.hidden = true;
+  projectStatus.textContent = '';
+  queue.push({source: editor.dataset.source, line: 1, replay: true});
+  executeNext();
+};
+
+if (editor.dataset.source) projectStatus.textContent = 'Project restored. Restart & replay to initialize Python.';

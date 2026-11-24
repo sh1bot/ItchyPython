@@ -8,7 +8,7 @@
 :root {color-scheme:light dark}
 body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
 #pocket-preview [hidden] {display:none}
-#pocket-preview #execution-status:not(:empty) {padding:0 16px 10px;color:var(--dim)}
+#pocket-preview #project-status:not(:empty), #pocket-preview #execution-status:not(:empty) {padding:0 16px 10px;color:var(--dim)}
 #pocket-preview pre {margin:0;padding:12px 16px;background:var(--code);white-space:pre-wrap;overflow-wrap:anywhere}
 </style>
 </head><body>
@@ -33,7 +33,12 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
       <div class="name-keys" aria-label="Variable name keys" hidden></div>
       <div class="actions"><button type="button" data-action="back">Undo</button><button type="button" data-action="step">Step out</button></div>
     </section>
-    <div class="runbar"><button id="save">Save .py</button><button id="stop" disabled>Stop</button></div>
+    <div class="runbar">
+      <button id="save">Save .py</button><button id="save-project">Save project</button>
+      <button id="open-project">Open project</button><input id="project-file" type="file" accept=".tapscript,.json" hidden>
+      <button id="replay">Restart &amp; replay</button><button id="stop" disabled>Stop</button>
+    </div>
+    <div id="project-status" role="status"></div>
   </section>
 </div>
 <style>
@@ -66,6 +71,10 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
 #pocket-preview .choices button[data-kind="literal"] {color:var(--number)}
 #pocket-preview .actions {margin-top:12px}
 #pocket-preview .entry-controls {display:flex;flex-wrap:wrap;align-items:start;gap:8px}
+#pocket-preview .line-code button {min-width:0;min-height:0;padding:2px;border:0;border-radius:4px;background:transparent;font:inherit}
+#pocket-preview .line-code button[aria-pressed=true] {background:var(--active)}
+#pocket-preview .line > button {min-width:0;min-height:32px;padding:0;border:0;background:transparent}
+#pocket-preview .line.selected {background:var(--active);border-radius:8px}
 #pocket-preview .choices {flex:1 0 130px;min-width:0}
 #pocket-preview .choices button {max-width:100%;overflow-wrap:anywhere}
 #pocket-preview .numeric:not([hidden]) {flex:1 0 144px;display:grid;grid-template-columns:repeat(3,minmax(44px,1fr));gap:6px}
@@ -73,5 +82,6 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
 #pocket-preview .name-keys:not([hidden]) {display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px;margin-top:8px}
 #pocket-preview [data-action="step"] {flex:1;background:var(--brand);color:var(--on-brand);font-weight:650}
 </style>
+<script src="project.js"></script>
 <script src="editor.js"></script>
 <script src="app.js"></script></body></html>
