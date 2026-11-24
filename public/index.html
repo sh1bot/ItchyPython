@@ -12,13 +12,14 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
 #pocket-preview nav button[aria-pressed=true], #pocket-preview #run {background:var(--brand);color:var(--on-brand)}
 #pocket-preview .expression {background:var(--code);padding:18px;min-height:24px;font:20px ui-monospace,monospace;overflow-wrap:anywhere}
 #pocket-preview .keypad {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px 16px 0}
+#pocket-preview #execution-status:not(:empty) {padding:0 16px 10px;color:var(--dim)}
 #pocket-preview pre {margin:0;padding:12px 16px;background:var(--code);white-space:pre-wrap;overflow-wrap:anywhere}
 </style>
 </head><body>
 <div class="viz-dotted-background" id="pocket-preview">
   <section class="pocket" aria-label="TapScript editor">
-    <header><div><div class="wordmark">TapScript</div><h2>score.py</h2></div><span class="language">Python 3</span></header>
-    <nav aria-label="Mode"><button id="program-tab" aria-pressed="true">Program</button><button id="calculator-tab" aria-pressed="false">Calculator</button></nav>
+    <header><div><div class="wordmark">TapScript</div><h2>session.py</h2></div><span class="language">Python 3</span></header>
+    <nav aria-label="Mode"><button id="program-tab" aria-pressed="true">Session</button><button id="calculator-tab" aria-pressed="false">Calculator</button></nav>
     <div class="editor" aria-label="Python code">
       <div class="rows"></div>
       <div class="draft"><span class="number"></span><div class="draft-code" aria-live="polite"></div></div>
@@ -39,7 +40,8 @@ body {margin:0;padding:0 10px;background:light-dark(#ebe9f5,#11121a)}
       <div class="keypad" aria-label="Calculator keypad"></div>
       <div class="tray" aria-label="Variables and functions"></div>
     </section>
-    <div class="runbar"><button id="run">Run program</button><button id="stop" disabled>Stop</button></div>
+    <div class="runbar"><button id="save">Save .py</button><button id="run" hidden>Evaluate</button><button id="stop" disabled>Stop</button></div>
+    <div id="execution-status" role="status"></div>
     <pre id="result" aria-live="polite" hidden></pre>
   </section>
 </div>

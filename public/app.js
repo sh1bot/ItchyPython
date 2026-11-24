@@ -5,6 +5,8 @@ const calculator = get('#calculator');
 const expression = get('.expression');
 const keypad = get('.keypad');
 const tray = get('.tray');
+const save = get('#save');
+const status = get('#execution-status');
 const run = get('#run');
 const stop = get('#stop');
 const result = get('#result');
@@ -13,6 +15,8 @@ const calculatorTab = get('#calculator-tab');
 
 let mode = 'program';
 let worker;
+let active;
+const queue = [];
 let pieces = [];
 let names = [];
 const output = {program: '', calculator: ''};
@@ -29,7 +33,8 @@ function setMode(next) {
   calculatorTab.setAttribute('aria-pressed', String(calculating));
   editor.hidden = composer.hidden = calculating;
   calculator.hidden = !calculating;
-  run.textContent = calculating ? 'Evaluate' : 'Run program';
+  run.hidden = !calculating;
+  save.hidden = calculating;
   showOutput();
 }
 
@@ -69,57 +74,77 @@ function showTray() {
     button(tray, isFunction ? name + '(' : name, () => insert(isFunction ? name + '(' : name));
   }
 }
-function setBusy(busy) {
-  run.disabled = busy;
-  stop.disabled = !busy;
+function updateStatus() {
+  run.disabled = Boolean(active);
+  stop.disabled = !active;
+  status.textContent = active ? (queue.length ? 'Running · ' + queue.length + ' queued' : 'Running…') : '';
 }
-function evaluate() {
-  const requestedMode = mode;
-  if (mode === 'program' && editor.dataset.incomplete === 'true') {
-    output.program = 'Finish the current line before running.';
-    showOutput();
-    return;
-  }
 
-  output[mode] = 'Running…';
+function appendOutput(target, text) {
+  output[target] += (output[target] ? '\n' : '') + text;
   showOutput();
-  setBusy(true);
-  worker ??= new Worker('worker.js');
-  let received = false;
-  worker.onmessage = ({data}) => {
-    if (data.type === 'output' || data.type === 'error') {
-      output[requestedMode] = (received ? output[requestedMode] + '\n' : '') + data.text;
-      received = true;
-    }
-    if (data.type === 'done') {
-      names = data.names;
-      showTray();
-      if (!received) output[requestedMode] = 'Finished.';
-    }
-    if (data.type !== 'output') setBusy(false);
-    showOutput();
-  };
-  worker.onerror = () => {
-    output[requestedMode] = 'Python could not load. Check your connection and try again.';
-    worker.terminate();
-    worker = undefined;
-    names = [];
-    showTray();
-    setBusy(false);
-    showOutput();
-  };
-  stop.onclick = () => {
-    worker.terminate();
-    worker = undefined;
-    names = [];
-    showTray();
-    output[requestedMode] = 'Stopped. Python variables were cleared.';
-    setBusy(false);
-    showOutput();
-  };
-  worker.postMessage({mode, source: mode === 'program' ? editor.dataset.source : pieces.join('').trim() || '0'});
 }
-run.onclick = evaluate;
+
+function resetWorker(message) {
+  const target = active.mode;
+  worker?.terminate();
+  worker = undefined;
+  active = undefined;
+  queue.length = 0;
+  names = [];
+  showTray();
+  appendOutput(target, message);
+  updateStatus();
+}
+
+function executeNext() {
+  if (active || !queue.length) return;
+  active = queue.shift();
+  updateStatus();
+  try {
+    if (!worker) {
+      worker = new Worker('worker.js');
+      worker.onmessage = ({data}) => {
+        if (data.type === 'fatal') {
+          resetWorker(data.text);
+          return;
+        }
+        if (data.type === 'output' || data.type === 'error') appendOutput(active.mode, data.text);
+        if (data.type !== 'done') return;
+        names = data.names;
+        showTray();
+        active = undefined;
+        updateStatus();
+        executeNext();
+      };
+      worker.onerror = () => resetWorker('Python could not load or stopped unexpectedly. Queued entries were cleared.');
+    }
+    worker.postMessage(active);
+  } catch {
+    resetWorker('Python could not start. Queued entries were cleared.');
+  }
+}
+
+editor.addEventListener('tapscript:submit', ({detail}) => {
+  queue.push({mode: 'program', ...detail});
+  executeNext();
+  updateStatus();
+});
+run.onclick = () => {
+  output.calculator = '';
+  showOutput();
+  queue.push({mode: 'calculator', source: pieces.join('').trim() || '0'});
+  executeNext();
+};
+stop.onclick = () => resetWorker('Stopped. Python variables and queued entries were cleared. Your source is still available to save.');
+save.onclick = () => {
+  const url = URL.createObjectURL(new Blob([editor.dataset.source + '\n'], {type: 'text/x-python'}));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'session.py';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 programTab.onclick = () => setMode('program');
 calculatorTab.onclick = () => setMode('calculator');
 showTray();

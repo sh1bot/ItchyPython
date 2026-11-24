@@ -8,20 +8,18 @@
   const nameKeys = get('.name-keys');
   const numbers = get('.numeric');
   const [left, right, undo, step] = ['left', 'right', 'back', 'step'].map(name => get('[data-action="' + name + '"]'));
-  const lines = [
-    {depth: 0, source: 'score = 12', variable: 'score'},
-    {depth: 0, source: 'if score > 10:', header: true},
-    {depth: 1, source: 'print(score)'}
-  ];
+  const lines = [];
+  let submitted = 0;
   const templates = {
     'Set variable': {},
+    'Expression': {prefix: ''},
     'if': {prefix: 'if ', suffix: ':', header: true},
     'print': {prefix: 'print', group: {open: '(', close: ')', empty: true, comma: true}},
     'pass': {prefix: 'pass', complete: true}
   };
   const operators = ['+', '−', '×', '÷', '//', '%', '**', '==', '!=', '<', '≤', '>', '≥', 'and', 'or'];
   const python = {'−': '-', '×': '*', '÷': '/', '≤': '<=', '≥': '>='};
-  let depth = 1;
+  let depth = 0;
   let kind = '';
   let state;
   let history = [];
@@ -113,10 +111,27 @@
     container.append(button);
   }
 
+  function sourceFor(items) {
+    return items.map(line => '    '.repeat(line.depth) + line.source).join('\n');
+  }
+
+  function submitCompleted() {
+    if (depth !== 0 || submitted === lines.length) return;
+    const detail = {source: sourceFor(lines.slice(submitted)), line: submitted + 1};
+    submitted = lines.length;
+    editor.dispatchEvent(new CustomEvent('tapscript:submit', {detail}));
+  }
+
+  function outdent() {
+    depth--;
+    submitCompleted();
+    draw();
+  }
+
   function draw(focusLabel) {
     const last = lines.at(-1);
-    const max = last.depth + Number(Boolean(last.header));
-    const min = last.header ? max : 0;
+    const max = submitted === lines.length ? 0 : last.depth + Number(Boolean(last.header));
+    const min = last?.header ? max : 0;
     const variables = [...new Set(lines.flatMap(line => line.variable ? [line.variable] : []))];
     const pickingVariable = kind === 'Set variable' && !state;
     const group = state?.groups.at(-1);
@@ -125,11 +140,15 @@
     right.disabled = depth >= max;
     undo.disabled = !kind;
     step.disabled = kind ? (group ? !canClose : !state || state.needsValue) : depth <= min;
-    step.textContent = group ? 'Step out · ' + group.close : state ? 'Step out · next line' : pickingVariable ? 'Step out' : depth > min ? 'Step out · outdent' : 'Step out';
-    get('.depth').textContent = 'Level ' + depth + (last.header ? ' · required after if' : depth ? ' · inside if' : ' · top level');
+    const exit = depth === 1 ? 'submit block' : 'outdent';
+    step.textContent = group ? 'Step out · ' + group.close :
+      state ? 'Step out · next line' :
+      !pickingVariable && depth > min ? 'Step out · ' + exit : 'Step out';
+    get('.depth').textContent = 'Level ' + depth + (last?.header ? ' · required after if' : depth ? ' · inside if' : ' · top level');
     get('.prompt').textContent = !kind ? 'Choose a statement' : pickingVariable ? (newName === null ? 'Choose a variable' : reserved.has(newName) ? 'Python reserves this name' : 'Name the variable') : state.needsValue ? 'Choose a value' : 'Continue the expression';
-    editor.dataset.source = lines.map(line => '    '.repeat(line.depth) + line.source).join('\n');
-    editor.dataset.incomplete = String(Boolean(last.header || kind));
+    editor.dataset.source = sourceFor(lines);
+    get('#save').disabled = !lines.length || Boolean(last?.header || kind);
+    editor.dataset.incomplete = String(Boolean(last?.header || kind));
     rows.replaceChildren(...lines.map((line, index) => {
       const row = document.createElement('div');
       const number = document.createElement('span');
@@ -190,8 +209,7 @@
 
   step.onclick = () => {
     if (!kind) {
-      depth--;
-      draw();
+      outdent();
       return;
     }
     if (state.groups.length) {
@@ -205,6 +223,7 @@
     state = undefined;
     history = [];
     showNumbers = false;
+    submitCompleted();
     draw();
     choices.firstElementChild.focus();
   };
@@ -223,7 +242,7 @@
     }
     draw();
   };
-  left.onclick = () => {depth--; draw();};
+  left.onclick = outdent;
   right.onclick = () => {depth++; draw();};
   draw();
 })();
