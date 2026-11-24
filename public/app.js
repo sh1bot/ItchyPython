@@ -97,6 +97,7 @@ projectFile.onchange = async () => {
 };
 
 get('#replay').onclick = () => {
+  editor.dispatchEvent(new CustomEvent('tapscript:replay'));
   clearWorker();
   result.textContent = '';
   result.hidden = true;

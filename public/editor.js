@@ -353,7 +353,8 @@
     get('.prompt').textContent = prompt;
     editor.dataset.source = sourceFor(lines);
     const canSave = lines.length > 0 && !last?.header && !kind;
-    for (const id of ['#save', '#save-project', '#replay']) get(id).disabled = !canSave;
+    for (const id of ['#save', '#save-project']) get(id).disabled = !canSave;
+    get('#replay').disabled = !canSave || depth !== 0;
     editor.dataset.project = canSave ? TapProject.encode(lines) : '';
     get('.draft').hidden = Boolean(selected && !edit);
     rows.replaceChildren(...lines.map((line, index) => {
@@ -547,6 +548,11 @@
     }
     draw();
   };
+  editor.addEventListener('tapscript:replay', () => {
+    submitted = lines.length;
+    selected = edit = null;
+    draw();
+  });
   editor.addEventListener('tapscript:open', ({detail}) => {
     clearDraft();
     lines.splice(0, lines.length, ...detail);
