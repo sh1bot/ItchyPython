@@ -1,4 +1,4 @@
-# Pocket Python
+# TapScript
 
 Touch-first Python editor and calculator. Program mode starts with a runnable sample. Complete the highlighted line using the tray, and use the indentation arrows to move among available levels. Calculator mode evaluates expressions and can reuse variables from the most recent program run. The previous calculator result is available as `ans`.
 
@@ -10,4 +10,4 @@ Run `python3 -m http.server 8000 --directory public` and open http://localhost:8
 
 ## GitHub Pages
 
-Push the repository to GitHub with `main` as its default branch. Under Settings → Pages, select **GitHub Actions** as the source, then run **Deploy Pocket Python** from Actions. The workflow publishes `public/`.
+Push the repository to GitHub with `main` as its default branch. Under Settings → Pages, select **GitHub Actions** as the source, then run **Deploy TapScript** from Actions. The workflow publishes `public/`.

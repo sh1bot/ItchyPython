@@ -1,4 +1,4 @@
-name: Deploy Pocket Python
+name: Deploy TapScript
 on:
   push:
     branches: [main]
